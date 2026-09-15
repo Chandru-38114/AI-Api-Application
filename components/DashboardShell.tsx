@@ -1,6 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Code2,
   Brain,
@@ -21,6 +22,11 @@ import {
   ArrowUp,
   ArrowDown,
   Minus,
+  Loader2,
+  X,
+  CheckCircle2,
+  XCircle,
+  Sparkles,
 } from "lucide-react";
 import CodeEditor from "@/components/CodeEditor";
 
@@ -28,6 +34,14 @@ import CodeEditor from "@/components/CodeEditor";
 
 type Tab = "coding" | "mcq" | "scoreboard";
 type Difficulty = "Easy" | "Medium" | "Hard";
+
+interface Question {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswerIndex: number;
+  explanation: string;
+}
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -37,7 +51,7 @@ const PROBLEM = {
   difficulty: "Medium" as Difficulty,
   tags: ["Array", "Hash Table"],
   description:
-    'Given an array of integers <code class="bg-gray-800 px-1 rounded text-blue-300">nums</code> and an integer <code class="bg-gray-800 px-1 rounded text-blue-300">target</code>, return the <strong>indices</strong> of the two numbers such that they add up to <code class="bg-gray-800 px-1 rounded text-blue-300">target</code>.<br/><br/>You may assume that each input has <strong>exactly one solution</strong>, and you may not use the same element twice. Return the answer in any order.',
+    'Given an array of integers <code class="bg-white/10 px-1 rounded text-[#00F2FE]">nums</code> and an integer <code class="bg-white/10 px-1 rounded text-[#00F2FE]">target</code>, return the <strong>indices</strong> of the two numbers such that they add up to <code class="bg-white/10 px-1 rounded text-[#00F2FE]">target</code>.<br/><br/>You may assume that each input has <strong>exactly one solution</strong>, and you may not use the same element twice. Return the answer in any order.',
   examples: [
     {
       input: "nums = [2,7,11,15], target = 9",
@@ -59,9 +73,9 @@ const PROBLEM = {
 };
 
 const DIFFICULTY_STYLE: Record<Difficulty, string> = {
-  Easy: "text-green-400 bg-green-400/10 border-green-500/40",
-  Medium: "text-yellow-400 bg-yellow-400/10 border-yellow-500/40",
-  Hard: "text-red-400 bg-red-400/10 border-red-500/40",
+  Easy: "text-emerald-400 bg-emerald-400/10 border-emerald-500/30",
+  Medium: "text-[#00F2FE] bg-[#00F2FE]/10 border-[#00F2FE]/30 shadow-[0_0_10px_rgba(0,242,254,0.2)]",
+  Hard: "text-[#9B51E0] bg-[#9B51E0]/10 border-[#9B51E0]/30 shadow-[0_0_10px_rgba(155,81,224,0.2)]",
 };
 
 const MCQ_DOMAINS = [
@@ -69,9 +83,8 @@ const MCQ_DOMAINS = [
     id: "python",
     title: "Python",
     Icon: Code2,
-    gradient: "from-blue-500 to-cyan-400",
-    bg: "bg-blue-950/30",
-    border: "border-blue-700/40",
+    gradient: "from-[#00F2FE] to-[#4FACFE]",
+    iconGlow: "shadow-[0_0_20px_rgba(0,242,254,0.3)]",
     description:
       "Core Python syntax, data structures, OOP, iterators, and standard library essentials.",
     questions: 40,
@@ -82,9 +95,8 @@ const MCQ_DOMAINS = [
     id: "ml",
     title: "Machine Learning",
     Icon: Brain,
-    gradient: "from-purple-500 to-violet-400",
-    bg: "bg-purple-950/30",
-    border: "border-purple-700/40",
+    gradient: "from-[#9B51E0] to-[#E056FD]",
+    iconGlow: "shadow-[0_0_20px_rgba(155,81,224,0.3)]",
     description:
       "Supervised & unsupervised learning, bias-variance tradeoff, model evaluation, sklearn.",
     questions: 35,
@@ -95,9 +107,8 @@ const MCQ_DOMAINS = [
     id: "nn",
     title: "Neural Networks",
     Icon: Network,
-    gradient: "from-orange-500 to-amber-400",
-    bg: "bg-orange-950/30",
-    border: "border-orange-700/40",
+    gradient: "from-[#00F2FE] to-[#9B51E0]",
+    iconGlow: "shadow-[0_0_20px_rgba(0,242,254,0.3)]",
     description:
       "Perceptrons, backpropagation, activation functions, vanishing gradients, architectures.",
     questions: 30,
@@ -108,9 +119,8 @@ const MCQ_DOMAINS = [
     id: "dl",
     title: "Deep Learning",
     Icon: Cpu,
-    gradient: "from-pink-500 to-rose-400",
-    bg: "bg-pink-950/30",
-    border: "border-pink-700/40",
+    gradient: "from-[#FF007A] to-[#9B51E0]",
+    iconGlow: "shadow-[0_0_20px_rgba(255,0,122,0.3)]",
     description:
       "CNNs, RNNs, Transformers, attention mechanisms, PyTorch/TensorFlow, GANs.",
     questions: 30,
@@ -131,17 +141,17 @@ const LEADERBOARD = [
 ];
 
 const DOMAIN_COLOR: Record<string, string> = {
-  "Python":           "text-blue-400",
-  "Machine Learning": "text-purple-400",
-  "Neural Networks":  "text-orange-400",
-  "Deep Learning":    "text-pink-400",
+  "Python":           "text-[#00F2FE]",
+  "Machine Learning": "text-[#9B51E0]",
+  "Neural Networks":  "text-[#00F2FE]",
+  "Deep Learning":    "text-[#FF007A]",
 };
 
 const PERF_STATS = [
-  { label: "Problems Solved", value: "24", Icon: Target,    color: "text-green-400",  bg: "bg-green-400/10"  },
-  { label: "Win Rate",        value: "68%", Icon: TrendingUp, color: "text-blue-400",  bg: "bg-blue-400/10"   },
-  { label: "Best Streak",     value: "7×",  Icon: Star,      color: "text-yellow-400", bg: "bg-yellow-400/10" },
-  { label: "Global Rank",     value: "#12", Icon: Award,     color: "text-purple-400", bg: "bg-purple-400/10" },
+  { label: "Problems Solved", value: "24", Icon: Target,    color: "text-[#00F2FE]",  glow: "shadow-[0_0_15px_rgba(0,242,254,0.3)]" },
+  { label: "Win Rate",        value: "68%", Icon: TrendingUp, color: "text-[#9B51E0]", glow: "shadow-[0_0_15px_rgba(155,81,224,0.3)]" },
+  { label: "Best Streak",     value: "7×",  Icon: Star,      color: "text-amber-400", glow: "shadow-[0_0_15px_rgba(251,191,36,0.3)]" },
+  { label: "Global Rank",     value: "#12", Icon: Award,     color: "text-[#00F2FE]",  glow: "shadow-[0_0_15px_rgba(0,242,254,0.3)]" },
 ];
 
 const TABS: { id: Tab; label: string; Icon: typeof Code2 }[] = [
@@ -155,86 +165,129 @@ const TABS: { id: Tab; label: string; Icon: typeof Code2 }[] = [
 export default function DashboardShell() {
   const [activeTab, setActiveTab] = useState<Tab>("coding");
 
-  return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
+  // Quiz State
+  const [isLoadingQuiz, setIsLoadingQuiz] = useState<string | null>(null);
+  const [activeQuizDomain, setActiveQuizDomain] = useState<string | null>(null);
+  const [activeQuiz, setActiveQuiz] = useState<Question[] | null>(null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+  const [quizCompleted, setQuizCompleted] = useState(false);
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-gray-800 bg-gray-900/80 backdrop-blur-md">
-        <div className="max-w-screen-2xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+  const handleStartQuiz = async (domainId: string, domainTitle: string) => {
+    try {
+      setIsLoadingQuiz(domainId);
+      const res = await fetch("/api/mcq/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // Ensure "Full Stack Web Development" per request or dynamic domain. Let's pass the dynamic domainTitle but fall back.
+        body: JSON.stringify({ domain: domainTitle || "Full Stack Web Development", difficulty: "medium" }),
+      });
+      
+      if (!res.ok) throw new Error("Failed to generate quiz");
+      
+      const data = await res.json();
+      
+      setActiveQuizDomain(domainTitle);
+      setActiveQuiz(data.questions);
+      setCurrentQuestionIndex(0);
+      setSelectedAnswers({});
+      setQuizCompleted(false);
+    } catch (err) {
+      console.error(err);
+      alert("Error starting quiz. Please try again.");
+    } finally {
+      setIsLoadingQuiz(null);
+    }
+  };
+
+  return (
+    <div className="min-h-screen text-[#F9FAFB] flex flex-col">
+
+      {/* ── Floating Header ──────────────────────────────────────────────────── */}
+      <header className="sticky top-4 z-50 px-4 sm:px-6 max-w-screen-2xl mx-auto w-full">
+        <div className="bg-[#121318]/70 backdrop-blur-md border border-white/[0.08] rounded-2xl px-6 h-16 flex items-center justify-between gap-4 shadow-[0_8px_32px_rgba(0,0,0,0.37)]">
 
           {/* Brand */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-900/40">
-              <Zap className="w-5 h-5 text-white fill-current" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#00F2FE] to-[#9B51E0] flex items-center justify-center shadow-[0_0_20px_rgba(0,242,254,0.35)]">
+              <Zap className="w-5 h-5 text-black fill-current" />
             </div>
             <div className="leading-tight select-none">
-              <p className="text-[10px] font-semibold tracking-[0.2em] text-gray-500 uppercase">
+              <p className="text-[10px] font-semibold tracking-[0.2em] text-slate-400 uppercase">
                 AI Learning Platform
               </p>
               <h1 className="text-lg font-black tracking-tight text-white">
-                Skill<span className="text-blue-400">Verse</span>
+                Skill<span className="text-[#00F2FE]">Verse</span>
               </h1>
             </div>
           </div>
 
           {/* Right controls */}
           <div className="flex items-center gap-3">
+            {/* Assessment Pipeline Link */}
+            <Link
+              href="/assessment"
+              className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-300 hover:text-white transition-all shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#00F2FE]" />
+              Domain Assessment
+            </Link>
+
             {/* Elo chip */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 text-sm font-bold select-none">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#00F2FE]/30 bg-[#00F2FE]/10 text-[#00F2FE] text-sm font-bold select-none shadow-[0_0_12px_rgba(0,242,254,0.2)]">
               <Zap className="w-3.5 h-3.5 fill-current" />
               1 200 Elo
             </div>
+
             {/* Profile badge */}
-            <button className="flex items-center gap-2.5 pl-2 pr-3.5 py-1.5 rounded-full bg-gray-800 border border-gray-700 hover:bg-gray-700/80 transition-colors">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center">
-                <User className="w-4 h-4 text-white" />
+            <button className="flex items-center gap-2.5 pl-1.5 pr-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#00F2FE] to-[#9B51E0] flex items-center justify-center">
+                <User className="w-4 h-4 text-black" />
               </div>
-              <span className="text-sm font-medium text-gray-200">Student</span>
+              <span className="text-sm font-medium text-slate-200">Student</span>
             </button>
           </div>
         </div>
       </header>
 
       {/* ── Navigation Tabs ──────────────────────────────────────────────────── */}
-      <nav className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm">
-        <div className="max-w-screen-2xl mx-auto px-6">
-          <div className="flex gap-1 overflow-x-auto scrollbar-none">
-            {TABS.map(({ id, label, Icon }) => {
-              const active = activeTab === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id)}
-                  className={`flex items-center gap-2 px-5 py-4 text-sm font-medium border-b-2 whitespace-nowrap transition-all ${
-                    active
-                      ? "border-blue-500 text-blue-400"
-                      : "border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600"
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+      <nav className="mt-4 px-4 sm:px-6 max-w-screen-2xl mx-auto w-full">
+        <div className="p-1.5 bg-[#121318]/50 backdrop-blur-md rounded-2xl border border-white/[0.06] flex gap-2 overflow-x-auto scrollbar-none shadow-md">
+          {TABS.map(({ id, label, Icon }) => {
+            const active = activeTab === id;
+            return (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={`flex items-center gap-2 px-5 py-2.5 text-sm whitespace-nowrap transition-all rounded-xl ${
+                  active
+                    ? "bg-gradient-to-r from-[#00F2FE]/20 to-[#9B51E0]/20 text-[#00F2FE] border border-[#00F2FE]/40 shadow-[0_0_15px_rgba(0,242,254,0.25)] font-semibold"
+                    : "border border-transparent text-slate-400 hover:text-white hover:bg-white/[0.04]"
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </button>
+            );
+          })}
         </div>
       </nav>
 
       {/* ── Main Content ─────────────────────────────────────────────────────── */}
-      <main className="flex-1 max-w-screen-2xl w-full mx-auto px-6 py-6">
+      <main className="flex-1 max-w-screen-2xl w-full mx-auto px-4 sm:px-6 py-6">
 
         {/* ── TAB: LeetCode Coding ─────────────────────────────────────────── */}
         {activeTab === "coding" && (
-          <div className="flex gap-6 h-[calc(100vh-12rem)]">
+          <div className="flex flex-col lg:flex-row gap-6 h-auto lg:h-[calc(100vh-13rem)]">
 
             {/* Problem sidebar */}
-            <aside className="w-[360px] shrink-0 flex flex-col gap-4 overflow-y-auto pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-700">
+            <aside className="w-full lg:w-[380px] shrink-0 flex flex-col gap-4 overflow-y-auto pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
 
               {/* Title + difficulty */}
-              <div className="rounded-xl border border-gray-800 bg-gray-900 p-5">
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-md p-5 shadow-lg">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
-                    <p className="text-xs font-medium text-gray-500 mb-1">Problem #{PROBLEM.id}</p>
+                    <p className="text-xs font-semibold text-slate-500 mb-1">Problem #{PROBLEM.id}</p>
                     <h2 className="text-xl font-bold text-white">{PROBLEM.title}</h2>
                   </div>
                   <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${DIFFICULTY_STYLE[PROBLEM.difficulty]}`}>
@@ -243,8 +296,8 @@ export default function DashboardShell() {
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {PROBLEM.tags.map((tag) => (
-                    <span key={tag} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-gray-800 border border-gray-700 text-gray-400">
-                      <Tag className="w-3 h-3" />
+                    <span key={tag} className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-slate-300">
+                      <Tag className="w-3 h-3 text-[#00F2FE]" />
                       {tag}
                     </span>
                   ))}
@@ -252,33 +305,33 @@ export default function DashboardShell() {
               </div>
 
               {/* Description */}
-              <div className="rounded-xl border border-gray-800 bg-gray-900 p-5">
-                <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-3">
-                  <BookOpen className="w-4 h-4" /> Description
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-md p-5 shadow-lg">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-200 mb-3">
+                  <BookOpen className="w-4 h-4 text-[#00F2FE]" /> Description
                 </h3>
                 <p
-                  className="text-sm text-gray-400 leading-relaxed"
+                  className="text-sm text-slate-300 leading-relaxed"
                   dangerouslySetInnerHTML={{ __html: PROBLEM.description }}
                 />
               </div>
 
               {/* Examples */}
-              <div className="rounded-xl border border-gray-800 bg-gray-900 p-5 space-y-4">
-                <h3 className="text-sm font-semibold text-gray-300">Examples</h3>
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-md p-5 space-y-4 shadow-lg">
+                <h3 className="text-sm font-semibold text-slate-200">Examples</h3>
                 {PROBLEM.examples.map((ex, i) => (
                   <div key={i}>
-                    <p className="text-xs font-semibold text-gray-500 mb-2">Example {i + 1}</p>
-                    <div className="rounded-lg bg-gray-950 border border-gray-800 p-3 space-y-1 font-mono text-xs">
+                    <p className="text-xs font-semibold text-slate-500 mb-2">Example {i + 1}</p>
+                    <div className="rounded-xl bg-[#0A0A0C]/90 border border-white/[0.08] p-3 space-y-1.5 font-mono text-xs">
                       <p>
-                        <span className="text-gray-500">Input: </span>
-                        <span className="text-green-400">{ex.input}</span>
+                        <span className="text-slate-500">Input: </span>
+                        <span className="text-[#00F2FE]">{ex.input}</span>
                       </p>
                       <p>
-                        <span className="text-gray-500">Output: </span>
-                        <span className="text-blue-400">{ex.output}</span>
+                        <span className="text-slate-500">Output: </span>
+                        <span className="text-[#9B51E0]">{ex.output}</span>
                       </p>
                       {ex.explanation && (
-                        <p className="text-gray-500 pt-2 border-t border-gray-800 text-[11px]">
+                        <p className="text-slate-400 pt-2 border-t border-white/[0.06] text-[11px]">
                           {ex.explanation}
                         </p>
                       )}
@@ -288,13 +341,13 @@ export default function DashboardShell() {
               </div>
 
               {/* Constraints */}
-              <div className="rounded-xl border border-gray-800 bg-gray-900 p-5">
-                <h3 className="text-sm font-semibold text-gray-300 mb-3">Constraints</h3>
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-md p-5 shadow-lg">
+                <h3 className="text-sm font-semibold text-slate-200 mb-3">Constraints</h3>
                 <ul className="space-y-2">
                   {PROBLEM.constraints.map((c, i) => (
-                    <li key={i} className="flex items-start gap-2 text-xs text-gray-400">
-                      <ChevronRight className="w-3.5 h-3.5 text-gray-600 mt-0.5 shrink-0" />
-                      <code className="font-mono">{c}</code>
+                    <li key={i} className="flex items-start gap-2 text-xs text-slate-400">
+                      <ChevronRight className="w-3.5 h-3.5 text-[#00F2FE] mt-0.5 shrink-0" />
+                      <code className="font-mono text-slate-300">{c}</code>
                     </li>
                   ))}
                 </ul>
@@ -302,7 +355,7 @@ export default function DashboardShell() {
             </aside>
 
             {/* Code Editor */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 min-h-[500px]">
               <CodeEditor />
             </div>
           </div>
@@ -310,52 +363,60 @@ export default function DashboardShell() {
 
         {/* ── TAB: MCQ Evaluation ──────────────────────────────────────────── */}
         {activeTab === "mcq" && (
-          <div className="max-w-4xl mx-auto space-y-8">
+          <div className="max-w-4xl mx-auto space-y-8 py-4">
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold text-white">MCQ Knowledge Evaluation</h2>
-              <p className="text-gray-400 text-sm">
-                Select a domain to start a timed quiz and earn Elo rating points
+              <h2 className="text-3xl font-black text-white">MCQ Knowledge Evaluation</h2>
+              <p className="text-slate-400 text-sm">
+                Select a domain to start an AI-powered timed quiz and earn Elo rating points
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {MCQ_DOMAINS.map(({ id, title, Icon, gradient, bg, border, description, questions, duration, elo }) => (
-                <div key={id} className={`relative rounded-xl border ${border} ${bg} p-6 flex flex-col gap-4 hover:scale-[1.02] transition-transform`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {MCQ_DOMAINS.map(({ id, title, Icon, gradient, iconGlow, description, questions, duration, elo }) => (
+                <div
+                  key={id}
+                  className="relative rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-md p-6 flex flex-col gap-4 transition-all duration-300 hover:border-[#00F2FE]/40 hover:shadow-[0_0_24px_rgba(0,242,254,0.12)] hover:-translate-y-1"
+                >
                   {/* Icon */}
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}>
-                    <Icon className="w-6 h-6 text-white" />
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center ${iconGlow}`}>
+                    <Icon className="w-6 h-6 text-black" />
                   </div>
 
                   {/* Text */}
-                  <div className="space-y-1 flex-1">
+                  <div className="space-y-1.5 flex-1">
                     <h3 className="text-lg font-bold text-white">{title}</h3>
-                    <p className="text-sm text-gray-400 leading-relaxed">{description}</p>
+                    <p className="text-sm text-slate-400 leading-relaxed">{description}</p>
                   </div>
 
                   {/* Meta */}
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <BookOpen className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-4 text-xs text-slate-400">
+                    <span className="flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5 text-[#00F2FE]" />
                       {questions} questions
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Target className="w-3.5 h-3.5" />
+                    <span className="flex items-center gap-1.5">
+                      <Target className="w-3.5 h-3.5 text-[#9B51E0]" />
                       {duration}
                     </span>
                   </div>
 
                   {/* Footer */}
-                  <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                    <span className="flex items-center gap-1 text-xs font-bold text-yellow-400">
+                  <div className="flex items-center justify-between pt-4 border-t border-white/[0.06]">
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-[#00F2FE]">
                       <Zap className="w-3.5 h-3.5 fill-current" />
                       {elo}
                     </span>
                     <button
-                      onClick={() => console.info(`[MCQ] Starting: ${title}`)}
-                      className={`flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r ${gradient} text-white text-sm font-semibold shadow-md hover:opacity-90 active:scale-95 transition-all`}
+                      onClick={() => handleStartQuiz(id, title)}
+                      disabled={isLoadingQuiz === id}
+                      className="btn-primary-glow flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider disabled:opacity-50"
                     >
-                      <Play className="w-4 h-4 fill-current" />
-                      Start Quiz
+                      {isLoadingQuiz === id ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-black" />
+                      ) : (
+                        <Play className="w-3.5 h-3.5 fill-current text-black" />
+                      )}
+                      {isLoadingQuiz === id ? "Generating..." : "Start Quiz"}
                     </button>
                   </div>
                 </div>
@@ -366,57 +427,57 @@ export default function DashboardShell() {
 
         {/* ── TAB: Scoreboard ──────────────────────────────────────────────── */}
         {activeTab === "scoreboard" && (
-          <div className="space-y-6">
+          <div className="space-y-6 py-4">
 
             {/* Section header */}
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-bold text-white">Student Scoreboard</h2>
-                <p className="text-sm text-gray-400 mt-1">Domain-wise Elo rankings · Updated in real-time</p>
+                <h2 className="text-2xl font-black text-white">Student Scoreboard</h2>
+                <p className="text-sm text-slate-400 mt-1">Domain-wise Elo rankings · Updated in real-time</p>
               </div>
-              <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2">
-                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                Live
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#00F2FE] bg-[#00F2FE]/10 border border-[#00F2FE]/30 rounded-xl px-3 py-1.5 shadow-[0_0_10px_rgba(0,242,254,0.2)]">
+                <span className="w-2 h-2 rounded-full bg-[#00F2FE] animate-pulse" />
+                Live Node Feed
               </div>
             </div>
 
             {/* Performance metrics */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {PERF_STATS.map(({ label, value, Icon, color, bg }) => (
-                <div key={label} className="rounded-xl border border-gray-800 bg-gray-900 p-4 flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg ${bg} flex items-center justify-center ${color}`}>
+              {PERF_STATS.map(({ label, value, Icon, color, glow }) => (
+                <div key={label} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-md p-5 flex items-center gap-4 shadow-lg">
+                  <div className={`w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center ${color} ${glow}`}>
                     <Icon className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="text-xl font-bold text-white">{value}</p>
-                    <p className="text-xs text-gray-500 leading-tight">{label}</p>
+                    <p className="text-2xl font-black text-white">{value}</p>
+                    <p className="text-xs text-slate-400 leading-tight">{label}</p>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Leaderboard table */}
-            <div className="rounded-xl border border-gray-800 bg-gray-900 overflow-hidden">
-              <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-800">
-                <Medal className="w-5 h-5 text-yellow-400" />
-                <h3 className="font-semibold text-white">Global Elo Leaderboard</h3>
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-md overflow-hidden shadow-xl">
+              <div className="flex items-center gap-2.5 px-6 py-4 border-b border-white/[0.08]">
+                <Medal className="w-5 h-5 text-[#00F2FE]" />
+                <h3 className="font-bold text-white">Global Elo Leaderboard</h3>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-800 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                      <th className="text-left px-6 py-3">Rank</th>
-                      <th className="text-left px-6 py-3">Student</th>
-                      <th className="text-left px-6 py-3">Top Domain</th>
-                      <th className="text-right px-6 py-3">Elo Rating</th>
-                      <th className="text-right px-6 py-3">W / L</th>
-                      <th className="text-center px-6 py-3">Trend</th>
+                    <tr className="border-b border-white/[0.06] text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      <th className="text-left px-6 py-3.5">Rank</th>
+                      <th className="text-left px-6 py-3.5">Student</th>
+                      <th className="text-left px-6 py-3.5">Top Domain</th>
+                      <th className="text-right px-6 py-3.5">Elo Rating</th>
+                      <th className="text-right px-6 py-3.5">W / L</th>
+                      <th className="text-center px-6 py-3.5">Trend</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-800/50">
+                  <tbody className="divide-y divide-white/[0.04]">
                     {LEADERBOARD.map((row) => (
-                      <tr key={row.rank} className="hover:bg-gray-800/40 transition-colors group">
+                      <tr key={row.rank} className="hover:bg-white/[0.04] transition-colors group">
 
                         {/* Rank */}
                         <td className="px-6 py-4">
@@ -424,17 +485,17 @@ export default function DashboardShell() {
                           {row.rank === 2 && <span title="2nd" className="text-lg">🥈</span>}
                           {row.rank === 3 && <span title="3rd" className="text-lg">🥉</span>}
                           {row.rank > 3 && (
-                            <span className="text-gray-500 font-mono">#{row.rank}</span>
+                            <span className="text-slate-500 font-mono">#{row.rank}</span>
                           )}
                         </td>
 
                         {/* Student */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#00F2FE] to-[#9B51E0] flex items-center justify-center text-xs font-bold text-black shrink-0">
                               {row.initials}
                             </div>
-                            <span className="font-medium text-gray-200 group-hover:text-white transition-colors">
+                            <span className="font-medium text-slate-200 group-hover:text-white transition-colors">
                               {row.name}
                             </span>
                           </div>
@@ -442,14 +503,14 @@ export default function DashboardShell() {
 
                         {/* Domain */}
                         <td className="px-6 py-4">
-                          <span className={`font-medium ${DOMAIN_COLOR[row.domain] ?? "text-gray-400"}`}>
+                          <span className={`font-medium ${DOMAIN_COLOR[row.domain] ?? "text-slate-400"}`}>
                             {row.domain}
                           </span>
                         </td>
 
                         {/* Elo */}
                         <td className="px-6 py-4 text-right">
-                          <span className="inline-flex items-center gap-1 font-bold text-yellow-400 justify-end">
+                          <span className="inline-flex items-center gap-1 font-bold text-[#00F2FE] justify-end">
                             <Zap className="w-3.5 h-3.5 fill-current" />
                             {row.elo.toLocaleString()}
                           </span>
@@ -457,16 +518,16 @@ export default function DashboardShell() {
 
                         {/* W/L */}
                         <td className="px-6 py-4 text-right font-mono text-sm">
-                          <span className="text-green-400">{row.wins}W</span>
-                          <span className="text-gray-600 mx-1.5">/</span>
-                          <span className="text-red-400">{row.losses}L</span>
+                          <span className="text-emerald-400">{row.wins}W</span>
+                          <span className="text-slate-600 mx-1.5">/</span>
+                          <span className="text-rose-400">{row.losses}L</span>
                         </td>
 
                         {/* Trend */}
                         <td className="px-6 py-4 text-center">
-                          {row.trend === "up"   && <ArrowUp   className="w-4 h-4 text-green-400 inline" />}
-                          {row.trend === "down" && <ArrowDown className="w-4 h-4 text-red-400 inline"   />}
-                          {row.trend === "same" && <Minus     className="w-4 h-4 text-gray-500 inline"  />}
+                          {row.trend === "up" && <ArrowUp className="w-4 h-4 text-emerald-400 inline" />}
+                          {row.trend === "down" && <ArrowDown className="w-4 h-4 text-rose-400 inline" />}
+                          {row.trend === "same" && <Minus className="w-4 h-4 text-slate-500 inline" />}
                         </td>
                       </tr>
                     ))}
@@ -479,6 +540,158 @@ export default function DashboardShell() {
         )}
 
       </main>
+
+      {/* ── Active Quiz Modal Overlay ─────────────────────────────────────── */}
+      {activeQuiz && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <div className="bg-[#0E0F14]/95 border border-white/[0.12] rounded-2xl w-full max-w-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.9)] flex flex-col max-h-[90vh]">
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-white/[0.02]">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#00F2FE]" />
+                <h2 className="text-lg font-bold text-white">
+                  {activeQuizDomain} Quiz
+                </h2>
+              </div>
+              <button
+                onClick={() => setActiveQuiz(null)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto">
+              {!quizCompleted ? (
+                // Active Question View
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center text-xs font-semibold uppercase tracking-wider text-[#00F2FE]">
+                    <span>Question {currentQuestionIndex + 1} of {activeQuiz.length}</span>
+                    <span className="text-slate-500">Passing score earns +Elo</span>
+                  </div>
+                  <h3 className="text-lg text-white font-semibold leading-relaxed">
+                    {activeQuiz[currentQuestionIndex].question}
+                  </h3>
+                  <div className="space-y-3">
+                    {activeQuiz[currentQuestionIndex].options.map((opt, idx) => {
+                      const isSelected = selectedAnswers[currentQuestionIndex] === idx;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => setSelectedAnswers((prev) => ({ ...prev, [currentQuestionIndex]: idx }))}
+                          className={`w-full text-left p-4 rounded-xl border text-sm transition-all ${
+                            isSelected
+                              ? "bg-[#00F2FE]/15 border-[#00F2FE] text-[#00F2FE] font-medium shadow-[0_0_12px_rgba(0,242,254,0.25)]"
+                              : "bg-white/[0.03] border-white/[0.08] text-slate-300 hover:bg-white/[0.06] hover:border-white/[0.15]"
+                          }`}
+                        >
+                          <span className="font-mono text-slate-500 mr-2">{String.fromCharCode(65 + idx)}.</span>
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                // Results Summary
+                <div className="space-y-8">
+                  <div className="text-center space-y-2">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00F2FE] to-[#9B51E0] flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(0,242,254,0.4)]">
+                      <Trophy className="w-6 h-6 text-black" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-white">Quiz Completed!</h3>
+                    <p className="text-slate-400 text-sm">
+                      You scored{" "}
+                      <span className="text-[#00F2FE] font-bold">
+                        {Object.entries(selectedAnswers).filter(([qIdx, aIdx]) => activeQuiz[Number(qIdx)].correctAnswerIndex === aIdx).length}
+                      </span>{" "}
+                      out of {activeQuiz.length}
+                    </p>
+                  </div>
+                  <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-1 scrollbar-thin">
+                    {activeQuiz.map((q, qIdx) => {
+                      const userAnswer = selectedAnswers[qIdx];
+                      const isCorrect = userAnswer === q.correctAnswerIndex;
+                      return (
+                        <div key={q.id} className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.08] space-y-2.5">
+                          <h4 className="text-white font-medium text-sm flex items-start gap-2">
+                            {isCorrect ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                            )}
+                            <span>{q.question}</span>
+                          </h4>
+                          <div className="pl-6 space-y-1 text-xs">
+                            <p className="text-slate-400">
+                              Your answer:{" "}
+                              <span className={isCorrect ? "text-emerald-400 font-medium" : "text-rose-400 font-medium"}>
+                                {q.options[userAnswer] ?? "Unanswered"}
+                              </span>
+                            </p>
+                            {!isCorrect && (
+                              <p className="text-slate-400">
+                                Correct answer:{" "}
+                                <span className="text-emerald-400 font-medium">
+                                  {q.options[q.correctAnswerIndex]}
+                                </span>
+                              </p>
+                            )}
+                            <p className="text-slate-500 italic pt-1">{q.explanation}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-white/[0.08] bg-white/[0.02] flex justify-between items-center">
+              {!quizCompleted ? (
+                <>
+                  <button
+                    onClick={() => setCurrentQuestionIndex((prev) => Math.max(0, prev - 1))}
+                    disabled={currentQuestionIndex === 0}
+                    className="btn-glass px-4 py-2 rounded-xl text-xs font-semibold disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+                  {currentQuestionIndex === activeQuiz.length - 1 ? (
+                    <button
+                      onClick={() => setQuizCompleted(true)}
+                      disabled={selectedAnswers[currentQuestionIndex] === undefined}
+                      className="btn-primary-glow px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider disabled:opacity-40"
+                    >
+                      Submit Quiz
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setCurrentQuestionIndex((prev) => Math.min(activeQuiz.length - 1, prev + 1))}
+                      disabled={selectedAnswers[currentQuestionIndex] === undefined}
+                      className="btn-glass px-5 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  )}
+                </>
+              ) : (
+                <button
+                  onClick={() => setActiveQuiz(null)}
+                  className="btn-primary-glow w-full py-3 rounded-xl text-xs font-bold uppercase tracking-wider"
+                >
+                  Back to Dashboard
+                </button>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useCallback } from "react";
 import Editor from "@monaco-editor/react";
@@ -109,11 +109,9 @@ const PISTON_API = "https://emkc.org/api/v2/piston/execute";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function isDarkTheme(t: Theme) {
-  return t === "vs-dark" || t === "hc-black";
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
+
 
 export default function CodeEditor() {
   const [language, setLanguage] = useState<Language>("python");
@@ -121,8 +119,6 @@ export default function CodeEditor() {
   const [code, setCode] = useState<string>(LANGUAGE_CONFIG.python.boilerplate);
   const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState<OutputState | null>(null);
-
-  const dark = isDarkTheme(theme);
 
   // Reset editor content when language changes
   const handleLanguageChange = useCallback((lang: Language) => {
@@ -140,32 +136,26 @@ export default function CodeEditor() {
     const t0 = Date.now();
 
     try {
-      const res = await fetch(PISTON_API, {
+      const res = await fetch("/api/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          language: LANGUAGE_CONFIG[language].pistonLang,
-          version: "*",
-          files: [{ content: code }],
+          language: language,
+          code: code,
         }),
       });
 
-      if (!res.ok) {
-        throw new Error(`API responded with ${res.status} ${res.statusText}`);
-      }
-
-      const data: PistonResponse = await res.json();
+      const data = await res.json();
       const elapsed = Date.now() - t0;
 
-      // Merge compile-stage stderr (e.g. C++ build errors) with run stderr
-      const compileSterr = data.compile?.stderr ?? "";
-      const runStderr = data.run.stderr ?? "";
-      const mergedStderr = [compileSterr, runStderr].filter(Boolean).join("\n").trim();
+      if (!res.ok) {
+        throw new Error(data.error || `API responded with ${res.status} ${res.statusText}`);
+      }
 
       setOutput({
-        stdout: data.run.output || data.run.stdout || "",
-        stderr: mergedStderr,
-        exitCode: data.run.code,
+        stdout: data.output || "",
+        stderr: "",
+        exitCode: 0,
         elapsedMs: elapsed,
         fetchError: null,
       });
@@ -190,43 +180,25 @@ export default function CodeEditor() {
   const config = LANGUAGE_CONFIG[language];
   const exitOk = output?.exitCode === 0;
 
-  // ── Tailwind class helpers ────────────────────────────────────────────────
-  const selectCls = dark
-    ? "bg-gray-700 border-gray-600 text-gray-100 hover:bg-gray-600 focus:ring-blue-500"
-    : "bg-white border-gray-300 text-gray-800 hover:bg-gray-50 focus:ring-blue-500";
-
   return (
-    <div
-      className={`flex flex-col h-full rounded-xl overflow-hidden border ${
-        dark ? "border-gray-700 bg-gray-900" : "border-gray-200 bg-white"
-      }`}
-    >
+    <div className="flex flex-col h-full rounded-2xl overflow-hidden border border-white/[0.08] bg-[#0A0A0C]/80 backdrop-blur-md shadow-xl">
       {/* ── Control Bar ───────────────────────────────────────────────────── */}
-      <div
-        className={`flex flex-wrap items-center gap-2 px-4 py-2.5 border-b ${
-          dark ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"
-        }`}
-      >
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-white/[0.08] bg-[#121318]/70 backdrop-blur-md">
         {/* Language selector */}
         <div className="relative">
           <select
             aria-label="Select language"
             value={language}
             onChange={(e) => handleLanguageChange(e.target.value as Language)}
-            className={`appearance-none pl-3 pr-8 py-1.5 text-sm rounded-md border cursor-pointer
-                        focus:outline-none focus:ring-2 transition-colors ${selectCls}`}
+            className="appearance-none pl-3 pr-8 py-1.5 text-xs rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 hover:border-white/20 focus:outline-none focus:ring-2 focus:ring-[#00F2FE] cursor-pointer transition-all"
           >
             {(Object.keys(LANGUAGE_CONFIG) as Language[]).map((key) => (
-              <option key={key} value={key}>
+              <option key={key} value={key} className="bg-[#121318] text-white">
                 {LANGUAGE_CONFIG[key].label}
               </option>
             ))}
           </select>
-          <ChevronDown
-            className={`absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none ${
-              dark ? "text-gray-400" : "text-gray-500"
-            }`}
-          />
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none text-slate-400" />
         </div>
 
         {/* Theme selector */}
@@ -235,20 +207,15 @@ export default function CodeEditor() {
             aria-label="Select editor theme"
             value={theme}
             onChange={(e) => setTheme(e.target.value as Theme)}
-            className={`appearance-none pl-3 pr-8 py-1.5 text-sm rounded-md border cursor-pointer
-                        focus:outline-none focus:ring-2 transition-colors ${selectCls}`}
+            className="appearance-none pl-3 pr-8 py-1.5 text-xs rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 hover:border-white/20 focus:outline-none focus:ring-2 focus:ring-[#00F2FE] cursor-pointer transition-all"
           >
             {THEMES.map((t) => (
-              <option key={t.value} value={t.value}>
+              <option key={t.value} value={t.value} className="bg-[#121318] text-white">
                 {t.label}
               </option>
             ))}
           </select>
-          <ChevronDown
-            className={`absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none ${
-              dark ? "text-gray-400" : "text-gray-500"
-            }`}
-          />
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none text-slate-400" />
         </div>
 
         <span className="flex-1" />
@@ -256,13 +223,9 @@ export default function CodeEditor() {
         {/* Ask AI Hint */}
         <button
           onClick={handleAskAIHint}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border transition-colors ${
-            dark
-              ? "bg-purple-900/40 border-purple-700 text-purple-300 hover:bg-purple-800/60"
-              : "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
-          }`}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-[#9B51E0]/30 bg-[#9B51E0]/10 text-[#9B51E0] hover:bg-[#9B51E0]/20 shadow-[0_0_10px_rgba(155,81,224,0.2)] transition-all"
         >
-          <Lightbulb className="w-4 h-4" />
+          <Lightbulb className="w-3.5 h-3.5" />
           Ask AI Hint
         </button>
 
@@ -270,18 +233,16 @@ export default function CodeEditor() {
         <button
           onClick={handleRunCode}
           disabled={isRunning}
-          className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold rounded-md
-                     bg-green-600 hover:bg-green-500 active:bg-green-700 text-white
-                     transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          className="btn-primary-glow flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isRunning ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
               Running…
             </>
           ) : (
             <>
-              <Play className="w-4 h-4 fill-current" />
+              <Play className="w-3.5 h-3.5 fill-current text-black" />
               Run Code
             </>
           )}
@@ -312,32 +273,22 @@ export default function CodeEditor() {
       </div>
 
       {/* ── Output Console ────────────────────────────────────────────────── */}
-      <div className={`border-t ${dark ? "border-gray-700" : "border-gray-200"}`}>
+      <div className="border-t border-white/[0.08] bg-[#0A0A0C]/90">
         {/* Console header */}
-        <div
-          className={`flex items-center justify-between px-4 py-2 ${
-            dark ? "bg-gray-800" : "bg-gray-100"
-          }`}
-        >
+        <div className="flex items-center justify-between px-4 py-2 bg-[#121318]/80 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
-            <Terminal
-              className={`w-4 h-4 ${dark ? "text-gray-400" : "text-gray-500"}`}
-            />
-            <span
-              className={`text-sm font-medium ${
-                dark ? "text-gray-300" : "text-gray-600"
-              }`}
-            >
+            <Terminal className="w-4 h-4 text-[#00F2FE]" />
+            <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
               Output Console
             </span>
 
             {/* Exit status badge */}
             {output && !output.fetchError && output.exitCode !== null && (
               <span
-                className={`flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
                   exitOk
-                    ? "bg-green-900/50 text-green-400"
-                    : "bg-red-900/50 text-red-400"
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_8px_rgba(52,211,153,0.2)]"
+                    : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
                 }`}
               >
                 {exitOk ? (
@@ -352,34 +303,30 @@ export default function CodeEditor() {
 
           {/* Elapsed time */}
           {output && (
-            <div
-              className={`flex items-center gap-1 text-xs ${
-                dark ? "text-gray-500" : "text-gray-400"
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-1 text-xs text-slate-400 font-mono">
+              <Clock className="w-3 h-3 text-[#00F2FE]" />
               {output.elapsedMs} ms
             </div>
           )}
         </div>
 
         {/* Console body */}
-        <div className="h-44 overflow-y-auto bg-gray-950 font-mono text-sm p-4 space-y-1">
+        <div className="h-44 overflow-y-auto bg-[#0A0A0C] font-mono text-xs p-4 space-y-1.5 scrollbar-thin">
           {/* Idle state */}
           {!output && !isRunning && (
-            <p className="text-gray-600 select-none">
-              // Click &ldquo;Run Code&rdquo; to see output here…
+            <p className="text-slate-600 select-none">
+              // Click &ldquo;Run Code&rdquo; to see execution output…
             </p>
           )}
 
           {/* Running state */}
           {isRunning && (
-            <p className="text-yellow-400 animate-pulse">● Executing…</p>
+            <p className="text-[#00F2FE] animate-pulse font-semibold">● Compiling and executing via sandbox…</p>
           )}
 
           {/* Network/API error */}
           {output?.fetchError && (
-            <div className="flex items-start gap-2 text-red-400">
+            <div className="flex items-start gap-2 text-rose-400">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <pre className="whitespace-pre-wrap">{output.fetchError}</pre>
             </div>
@@ -387,14 +334,14 @@ export default function CodeEditor() {
 
           {/* Stdout */}
           {output && !output.fetchError && output.stdout && (
-            <pre className="whitespace-pre-wrap text-green-300">{output.stdout}</pre>
+            <pre className="whitespace-pre-wrap text-[#00F2FE]">{output.stdout}</pre>
           )}
 
           {/* Stderr (compile errors, runtime errors) */}
           {output && !output.fetchError && output.stderr && (
             <>
               {output.stdout && (
-                <hr className="border-gray-800 my-2" />
+                <hr className="border-white/[0.08] my-2" />
               )}
               <div className="flex items-start gap-2 text-red-400">
                 <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -409,7 +356,7 @@ export default function CodeEditor() {
             !output.stdout &&
             !output.stderr &&
             output.exitCode === 0 && (
-              <p className="text-gray-500 italic">
+              <p className="text-[#9CA3AF] italic">
                 (no output – process exited successfully)
               </p>
             )}

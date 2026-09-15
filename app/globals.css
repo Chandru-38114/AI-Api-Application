@@ -1,26 +1,98 @@
 @import "tailwindcss";
 
+@theme {
+  --color-carbon: #0A0A0C;
+  --color-carbon-surface: #121318;
+  --color-neon-cyan: #00F2FE;
+  --color-electric-violet: #9B51E0;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #0A0A0C;
+  --foreground: #F9FAFB;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background-color: #0A0A0C;
+  color: #F9FAFB;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ── Custom Grid Texture Utility ────────────────────────────────────────── */
+.bg-grid-pattern {
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.15) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* ── Glassmorphism Panels ───────────────────────────────────────────────── */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-panel-hover:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(0, 242, 254, 0.3);
+  box-shadow: 0 0 24px rgba(0, 242, 254, 0.12);
+  transform: translateY(-2px);
+}
+
+/* ── Buttons & CTAs ─────────────────────────────────────────────────────── */
+.btn-primary-glow {
+  background: linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%);
+  color: #000000;
+  font-weight: 700;
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.35);
+  transition: all 0.2s ease-in-out;
+}
+.btn-primary-glow:hover {
+  box-shadow: 0 0 28px rgba(0, 242, 254, 0.55);
+  transform: translateY(-1px);
+}
+.btn-primary-glow:active {
+  transform: translateY(0);
+}
+
+.btn-glass {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #F9FAFB;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.2s ease-in-out;
+}
+.btn-glass:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Badges & Highlights ────────────────────────────────────────────────── */
+.badge-cyan {
+  background: rgba(0, 242, 254, 0.1);
+  color: #00F2FE;
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.2);
+}
+
+.badge-violet {
+  background: rgba(155, 81, 224, 0.1);
+  color: #9B51E0;
+  border: 1px solid rgba(155, 81, 224, 0.3);
+  box-shadow: 0 0 10px rgba(155, 81, 224, 0.2);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 10px #00F2FE;
+}
+
+.glow-cyan-lg {
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
 }
